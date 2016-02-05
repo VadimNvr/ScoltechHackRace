@@ -10,5 +10,8 @@ public class Chip {
     public Chip() {
         pins = new Pin[40];
         connections = new int[40];
+
+        for (int i = 0; i < 40; ++i)
+            connections[i] = -1;
     }
 }

@@ -8,7 +8,10 @@ public class MainClass {
 
     public static void main(String[] args){
         Board board = new Board();
-        board.getPins();
-        board.getConnections();
+        board.initGrid();
+        board.init1Level();
+        board.drawTracks();
+        board.printLevels();
+        board.printInfo();
     }
 }
