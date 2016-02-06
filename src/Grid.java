@@ -7,8 +7,8 @@ import java.util.List;
 public class Grid {
     int height;
     int width;
-    List<Float> x_steps;
-    List<Float> y_steps;
+    List<Double> x_steps;
+    List<Double> y_steps;
 
     Grid() {
         x_steps = new ArrayList<>();

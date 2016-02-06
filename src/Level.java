@@ -2,6 +2,8 @@ import java.io.BufferedWriter;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by vadim on 04.02.16.
@@ -12,6 +14,7 @@ public class Level {
     private Integer[][] map;
     private int height;
     private int width;
+    List<Integer> pins;
 
     public Level(int _height, int _width) {
         height = _height;
@@ -25,6 +28,8 @@ public class Level {
 
         cpu = new Chip();
         ram = new Chip();
+
+        pins = new ArrayList<>();
     }
 
     public void set(int value, int x, int y) {
