@@ -10,7 +10,13 @@ public class Grid {
     List<Double> x_steps;
     List<Double> y_steps;
 
+    double x_start;
+    double y_start;
+
     Grid() {
+        x_start = -3.0;
+        y_start = -3.05;
+
         x_steps = new ArrayList<>();
         y_steps = new ArrayList<>();
 

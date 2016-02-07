@@ -10,8 +10,8 @@ public class MainClass {
         Board board = new Board();
         board.initGrid();
         board.init1Level();
-        //board.drawTracks();
-        board.test();
+        board.drawTracks();
+        //board.test();
         board.printLevels();
         //board.printInfo();
     }
