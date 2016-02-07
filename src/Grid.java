@@ -14,8 +14,8 @@ public class Grid {
     double y_start;
 
     Grid() {
-        x_start = -3.0;
-        y_start = -3.05;
+        x_start = -4.0;
+        y_start = -4.0;
 
         x_steps = new ArrayList<>();
         y_steps = new ArrayList<>();

@@ -33,8 +33,7 @@ public class Board {
 
     public void initGrid() {
 
-        double dy = 0.2;
-        double dx;
+        double dx, dy;
 
         double y = grid.y_start;
 
@@ -55,6 +54,7 @@ public class Board {
                 x += dx;
             }
 
+            dy = (y < 5 ? 0.25 : 0.2);
             grid.y_steps.add(dy);
             y += dy;
         }
@@ -180,6 +180,25 @@ public class Board {
 
         Integer[][] map = level.cloneMap();
 
+        Pin [] cpu_pins = level.cpu.pins;
+
+        int reserv_y = levels.get(0).cpu.pins[0].grid_y - 1;
+
+        for (int i : level.pins) {
+
+            int cpu_idx = level.ram.connections[i];
+
+            int y = cpu_pins[cpu_idx].grid_y;
+            int x = cpu_pins[cpu_idx].grid_x;
+
+            if ((y-1 != reserv_y) || ((x == x1) && (y == y1)))
+                continue;
+
+            if (map[y-1][x] == 0) {
+                map[y-1][x] = 1;
+            }
+        }
+
         for (int i = 0; i < grid.height; ++i) {
             for (int j = 0; j < grid.width; ++j) {
                 map[i][j] = (map[i][j] == 0 ? FREE : BUSY);
@@ -293,9 +312,9 @@ public class Board {
         Pair<Double, Double> abs_center = gridToCoords(center.x, center.y);
 
         double dx = 0.25;
-        double dy = 0.2;
+        double dy = 0.25;
 
-        double line_width = 0.0999;
+        double line_width = 0.1;
 
         Pair<Double, Double> lr_dimens = new Pair<>(dx/2, line_width);
         Pair<Double, Double> tb_dimens = new Pair<>(line_width, dy/2);
