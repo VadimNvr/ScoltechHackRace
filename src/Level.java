@@ -1,3 +1,4 @@
+import java.awt.*;
 import java.io.BufferedWriter;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -15,6 +16,7 @@ public class Level {
     private int height;
     private int width;
     List<Integer> pins;
+    List<List<dvec2>> tracks;
 
     public Level(int _height, int _width) {
         height = _height;
@@ -30,6 +32,8 @@ public class Level {
         ram = new Chip();
 
         pins = new ArrayList<>();
+
+        tracks = new ArrayList<>();
     }
 
     public void set(int value, int x, int y) {

@@ -1,6 +1,7 @@
 import javafx.util.Pair;
 
 import java.awt.*;
+import java.awt.geom.Line2D;
 import java.io.*;
 import java.util.*;
 import java.util.List;
@@ -308,6 +309,33 @@ public class Board {
         }
     }
 
+    private boolean sphereSegIntersection(dvec2[] seg, dvec2 center) {
+        double r = 0.22;
+        dvec2 d = seg[1].sub(seg[0]);
+        dvec2 f = seg[0].sub(center);
+
+        double a = d.dot( d ) ;
+        double b = 2*f.dot( d ) ;
+        double c = f.dot( f ) - r*r ;
+
+        double discriminant = b*b-4*a*c;
+        if( discriminant < 0 )
+        {
+            return false;
+        }
+        else
+        {
+            discriminant = Math.sqrt( discriminant );
+            double t = (-b + discriminant)/(2*a);
+
+            if ((t <= 1) && (t >= 0)) {
+                return true;
+            }
+            else
+                return false;
+        }
+    }
+
     private void drawParts(int level, Point center, List<Side> sides) {
         Pair<Double, Double> abs_center = gridToCoords(center.x, center.y);
 
@@ -380,6 +408,140 @@ public class Board {
         return new Pair<>(x, y);
     }
 
+    private boolean areCrossing(dvec2[] seg1, dvec2[] seg2) {
+
+        Line2D line1 = new Line2D.Double(seg1[0].x, seg1[0].y, seg1[1].x, seg1[1].y);
+        Line2D line2 = new Line2D.Double(seg2[0].x, seg2[0].y, seg2[1].x, seg2[1].y);
+
+        return line1.intersectsLine(line2);
+    }
+
+    private boolean inCircle(dvec2 point, dvec2 center) {
+        double radius = 0.1;
+
+        double dx = point.x - center.x;
+        double dy = point.y - center.y;
+
+        return (Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2))) <= radius;
+    }
+
+    private void invalidateTracks(Level level) {
+
+        LinkedList<List<dvec2>> queue = new LinkedList<>();
+
+        for (List<dvec2> track : level.tracks) {
+            queue.add(track);
+        }
+
+        int iters = queue.size();
+
+        while (iters >= 0) {
+
+            double max_len = -1;
+            List<dvec2> max_track = null;
+            int max_l = -1;
+            int max_r = -1;
+
+            for (int it = 0; it < queue.size(); ++it) {
+                List<dvec2> track = queue.pollFirst();
+
+                int max_track_l = -1;
+                int max_track_r = -1;
+                double max_track_len = -1;
+
+                for (int l = 0; l < track.size(); ++l) {
+                    for (int r = track.size()-1; r > l + 1; --r) {
+                        dvec2[] line_init = new dvec2[] {track.get(l), track.get(r)};
+
+                        dvec2 dir = line_init[1].sub(line_init[0]);
+                        dvec2 normal = dir.normal().normalized();
+
+                        dvec2[][] lines = new dvec2[][] {
+                                new dvec2[] { line_init[0].add(normal.mul(0.151)), line_init[1].add(normal.mul(0.151)) },
+                                new dvec2[] { line_init[0].sub(normal.mul(0.151)), line_init[1].sub(normal.mul(0.151)) }
+                        };
+
+                        dvec2 pin_1 = track.get(0);
+                        dvec2 pin_2 = track.get(track.size()-1);
+
+                        //LINE INTERSECTIONS CHECK//
+                        boolean able = true;
+                        for (List<dvec2> tr: queue) {
+
+                            if (sphereSegIntersection(line_init, pin_1) || sphereSegIntersection(line_init, pin_2)) {
+                                able = false;
+                                break;
+                            }
+
+                            for (int i = 0; i < tr.size()-1; ++i) {
+
+                                dvec2[] ch_line = new dvec2[] { tr.get(i), tr.get(i+1) };
+
+                                if (       areCrossing(line_init, ch_line)
+                                        || areCrossing(lines[0], ch_line)
+                                        || areCrossing(lines[1], ch_line)) {
+                                    able = false;
+                                    break;
+                                }
+                            }
+
+                            if (!able)
+                                break;
+                        }
+                        //---------
+
+                        //JUMPS INTERSECTIONS CHECK//
+                        for (Point p: jumps) {
+                            Pair<Double, Double> jmp_abs = gridToCoords(p.x, p.y);
+                            dvec2 jmp = new dvec2(jmp_abs.getKey(), jmp_abs.getValue());
+                            if ((!inCircle(pin_1, jmp)) && (!inCircle(pin_2, jmp))) {
+                                if (sphereSegIntersection(line_init, jmp)) {
+                                    able = false;
+                                    break;
+                                }
+                            }
+                        }
+                        //--------------
+
+                        if (able) {
+                            double cur_length = 0;
+                            for (int i = l; i < r; ++i) {
+                                cur_length += track.get(i+1).sub(track.get(i)).norm();
+                            }
+                            double short_length = track.get(r).sub(track.get(l)).norm();
+
+                            double delta = cur_length-short_length;
+                            if (delta > max_track_len) {
+                                max_track_len = delta;
+                                max_track_l = l;
+                                max_track_r = r;
+                            }
+                        }
+
+                    }
+                }
+
+                if (max_track_len > max_len) {
+                    max_len = max_track_len;
+                    max_l = max_track_l;
+                    max_r = max_track_r;
+                    max_track = track;
+                }
+
+                queue.addLast(track);
+            }
+
+            if (max_len > 0) {
+                for (int i = max_r - 1; i > max_l; --i) {
+                    max_track.remove(i);
+                }
+            }
+            else {
+                --iters;
+            }
+        }
+    }
+
 
     private double getDistance(int ram_pin) {
         Level level = levels.get(0);
@@ -391,6 +553,55 @@ public class Board {
         int y1 = level.cpu.pins[level.ram.connections[ram_pin]].grid_y;
 
       return Math.sqrt(Math.pow(x1-x0, 2) + Math.pow(y1-y0, 2));
+    }
+
+    private void outputVertex(int lvl, dvec2 center) {
+        double radius = 0.055;
+
+        System.out.format("POLY 360, %d\n", lvl);
+
+        for (int angle = 0; angle < 360; angle++) {
+            double x = radius * Math.cos(Math.toRadians(angle));
+            double y = radius * Math.sin(Math.toRadians(angle));
+
+            dvec2 delta = new dvec2(x, y);
+            delta = delta.add(center);
+
+            System.out.format("%f; %f\n", delta.x, delta.y);
+        }
+    }
+
+    private void outputLine(int lvl, dvec2[] line) {
+
+        dvec2 dir = line[1].sub(line[0]);
+        dvec2 normal = dir.normal().normalized();
+
+        dvec2 v1 = line[0].add(normal.mul(0.0501));
+        dvec2 v2 = line[1].add(normal.mul(0.0501));
+        dvec2 v3 = line[1].sub(normal.mul(0.0501));
+        dvec2 v4 = line[0].sub(normal.mul(0.0501));
+
+        System.out.format("POLY 4, %d\n", lvl);
+        System.out.format("%f; %f\n%f; %f\n%f; %f\n%f; %f\n",
+                v1.x, v1.y,
+                v2.x, v2.y,
+                v3.x, v3.y,
+                v4.x, v4.y);
+    }
+
+    private void outputTracks(Level level, int lvl) {
+        for (List<dvec2> track: level.tracks) {
+            for (int idx = 0; idx < track.size()-1; ++idx) {
+
+                dvec2 [] seg = new dvec2[] {track.get(idx), track.get(idx+1)};
+
+                outputVertex(lvl, seg[0]);
+                outputVertex(lvl, seg[1]);
+
+                outputLine(lvl, seg);
+            }
+
+        }
     }
 
     public void drawTracks() {
@@ -418,14 +629,17 @@ public class Board {
 
             LinkedList<Point> track = getTrack(level, src, dst);
 
-            if (track != null)
-                drawTrack(track, levels.size());
+            if (track != null) {
+                List<dvec2> dtrack = new ArrayList<>();
+                for (Point step: track) {
+                    Pair<Double, Double> abs = gridToCoords(step.x, step.y);
+                    dtrack.add(new dvec2(abs.getKey(), abs.getValue()));
+                }
+                level.tracks.add(dtrack);
+            }
             else
                 last.add(elem);
         }
-
-        if (last.isEmpty())
-            return;
 
         Level next_level = new Level(grid.height, grid.width);
 
@@ -479,15 +693,16 @@ public class Board {
                         level.set(1, cpu_pin.grid_x, cpu_pin.grid_y);
                         level.set(8, point.x, point.y);
 
-                        LinkedList<Point> track = new LinkedList<>();
-                        track.add(cpu_pin.toPoint());
-                        track.add(point);
-                        drawTrack(track, levels.size());
-
-                        Pair<Double, Double> jump_abs = gridToCoords(point.x, point.y);
-                        System.out.format("JUMP %.5f; %.5f\n", jump_abs.getKey(), jump_abs.getValue());
+                        Pair<Double, Double> jmp_abs = gridToCoords(point.x, point.y);
                         jumps.add(point);
+                        Pair<Double, Double> pin_abs = gridToCoords(cpu_pin.grid_x, cpu_pin.grid_y);
 
+                        System.out.format("JUMP %f; %f\n", jmp_abs.getKey(), jmp_abs.getValue());
+
+                        List<dvec2> track = new ArrayList<>();
+                        track.add(new dvec2(jmp_abs.getKey(), jmp_abs.getValue()));
+                        track.add(new dvec2(pin_abs.getKey(), pin_abs.getValue()));
+                        level.tracks.add(track);
                         break;
                     }
                 }
@@ -508,21 +723,28 @@ public class Board {
                         level.set(1, ram_pin.grid_x, ram_pin.grid_y);
                         level.set(8, point.x, point.y);
 
-                        LinkedList<Point> track = new LinkedList<>();
-                        track.add(ram_pin.toPoint());
-                        track.add(point);
-                        drawTrack(track, levels.size());
-
-                        Pair<Double, Double> jump_abs = gridToCoords(point.x, point.y);
-                        System.out.format("JUMP %.5f; %.5f\n", jump_abs.getKey(), jump_abs.getValue());
+                        Pair<Double, Double> jmp_abs = gridToCoords(point.x, point.y);
                         jumps.add(point);
+                        Pair<Double, Double> pin_abs = gridToCoords(ram_pin.grid_x, ram_pin.grid_y);
 
+                        System.out.format("JUMP %f; %f\n", jmp_abs.getKey(), jmp_abs.getValue());
+
+                        List<dvec2> track = new ArrayList<>();
+                        track.add(new dvec2(jmp_abs.getKey(), jmp_abs.getValue()));
+                        track.add(new dvec2(pin_abs.getKey(), pin_abs.getValue()));
+                        level.tracks.add(track);
                         break;
                     }
 
                 }
             }
         }
+
+        invalidateTracks(level);
+        outputTracks(level, levels.size());
+
+        if (last.isEmpty())
+            return;
 
         levels.add(next_level);
         drawTracks();
